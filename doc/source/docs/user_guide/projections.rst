@@ -102,6 +102,53 @@ Re-projecting is the process of changing the representation of locations from on
     ax.set_title("Mercator");
 
 
+Re-projecting with Fiona
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+This example demonstrates how to use ``Fiona`` as the engine to re-project your data.
+
+.. code-block:: python
+
+    from distutils.version import LooseVersion
+    from functools import partial
+
+    import fiona
+    from fiona.transform import transform_geom
+    from pyproj import CRS
+    from shapely.geometry import mapping, shape
+
+
+    # set up Fiona transformer
+    def crs_to_fiona(proj_crs):
+        proj_crs = CRS.from_user_input(proj_crs)
+        if LooseVersion(fiona.__gdal_version__) < LooseVersion("3.0.0"):
+            fio_crs = proj_crs.to_wkt(WktVersion.WKT1_GDAL)
+        else:
+            # GDAL 3+ can use WKT2
+            fio_crs = dc_crs.to_wkt()
+
+    def base_transformer(geom, src_crs, dst_crs):
+        return shape(
+            transform_geom(
+                src_crs=crs_to_fiona(src_crs),
+                dst_crs=crs_to_fiona(dst_crs),
+                geom=mapping(geom),
+                antimeridian_cutting=True,
+            )
+        )
+
+    destination_crs = "EPSG:3395"
+    forward_transformer = partial(base_transformer, src_crs=world.crs, dst_crs=destination_crs)
+
+    # load example data
+    world = geopandas.read_file(geopandas.datasets.get_path('naturalearth_lowres'))
+
+    # Reproject to Mercator (after dropping Antartica)
+    world = world[(world.name != "Antarctica") & (world.name != "Fr. S. Antarctic Lands")]
+    with fiona.Env(OGR_ENABLE_PARTIAL_REPROJECTION="YES"):
+        world = world.set_geometry(world.geometry.apply(forward_transformer), crs=destination_crs)
+
+
 Projection for multiple geometry columns
 ----------------------------------------
 
