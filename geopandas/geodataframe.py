@@ -695,9 +695,7 @@ class GeoDataFrame(GeoPandasBase, DataFrame):
 
         _to_feather(self, path, index=index, compression=compression, **kwargs)
 
-    def to_file(
-        self, filename, driver="ESRI Shapefile", schema=None, index=None, **kwargs
-    ):
+    def to_file(self, filename, driver=None, schema=None, index=None, **kwargs):
         """Write the ``GeoDataFrame`` to a file.
 
         By default, an ESRI shapefile is written, but any OGR data source
@@ -711,8 +709,9 @@ class GeoDataFrame(GeoPandasBase, DataFrame):
         ----------
         filename : string
             File path or file handle to write to.
-        driver : string, default: 'ESRI Shapefile'
+        driver : string, default None
             The OGR format driver used to write the vector file.
+            If not specified, it attempt to infer it from the file extension.
         schema : dict, default: None
             If specified, the schema dictionary is passed to Fiona to
             better control how the file is written.
