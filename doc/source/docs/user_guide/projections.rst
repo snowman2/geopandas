@@ -102,10 +102,52 @@ Re-projecting is the process of changing the representation of locations from on
     ax.set_title("Mercator");
 
 
+Projection for multiple geometry columns
+----------------------------------------
+
+GeoPandas 0.8 implements support for different projections assigned to different geometry
+columns of the same GeoDataFrame. The projection is now stored together with geometries per column (directly
+on the GeometryArray level).
+
+Note that if GeometryArray has assigned projection, it is preferred over the
+projection passed to GeoSeries or GeoDataFrame during the creation:
+
+.. code-block:: python
+
+   >>> array.crs
+   <Geographic 2D CRS: EPSG:4326>
+   Name: WGS 84
+   Axis Info [ellipsoidal]:
+   - Lat[north]: Geodetic latitude (degree)
+   - Lon[east]: Geodetic longitude (degree)
+   ...
+   >>> GeoSeries(array, crs=3395).crs  # crs=3395 is ignored as array already has CRS
+   FutureWarning: CRS mismatch between CRS of the passed geometries and 'crs'. Use 'GeoDataFrame.set_crs(crs, allow_override=True)' to overwrite CRS or 'GeoDataFrame.to_crs(crs)' to reproject geometries. CRS mismatch will raise an error in the future versions of GeoPandas.
+       GeoSeries(array, crs=3395).crs
+
+   <Geographic 2D CRS: EPSG:4326>
+   Name: WGS 84
+   Axis Info [ellipsoidal]:
+   - Lat[north]: Geodetic latitude (degree)
+   - Lon[east]: Geodetic longitude (degree)
+   ...
+
+If you want to overwrite projection, you can then assign it to the GeoSeries
+manually or re-project geometries to the target projection using either
+``GeoSeries.set_crs(epsg=3395, allow_override=True)`` or
+``GeoSeries.to_crs(epsg=3395)``.
+
+All GeometryArray-based operations preserve projection; however, if you loop over a column
+containing geometry, this information might be lost.
+
+
 Re-projecting with Fiona
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 This example demonstrates how to use ``Fiona`` as the engine to re-project your data.
+Fiona is powered by GDAL and with algorithms that consider the geometry instead of
+just the points the geometry contains. This is particularly useful for antimeridian cutting.
+However, this also means the transformation is not as fast.
 
 .. code-block:: python
 
@@ -147,45 +189,6 @@ This example demonstrates how to use ``Fiona`` as the engine to re-project your 
     world = world[(world.name != "Antarctica") & (world.name != "Fr. S. Antarctic Lands")]
     with fiona.Env(OGR_ENABLE_PARTIAL_REPROJECTION="YES"):
         world = world.set_geometry(world.geometry.apply(forward_transformer), crs=destination_crs)
-
-
-Projection for multiple geometry columns
-----------------------------------------
-
-GeoPandas 0.8 implements support for different projections assigned to different geometry
-columns of the same GeoDataFrame. The projection is now stored together with geometries per column (directly
-on the GeometryArray level).
-
-Note that if GeometryArray has assigned projection, it is preferred over the
-projection passed to GeoSeries or GeoDataFrame during the creation:
-
-.. code-block:: python
-
-   >>> array.crs
-   <Geographic 2D CRS: EPSG:4326>
-   Name: WGS 84
-   Axis Info [ellipsoidal]:
-   - Lat[north]: Geodetic latitude (degree)
-   - Lon[east]: Geodetic longitude (degree)
-   ...
-   >>> GeoSeries(array, crs=3395).crs  # crs=3395 is ignored as array already has CRS
-   FutureWarning: CRS mismatch between CRS of the passed geometries and 'crs'. Use 'GeoDataFrame.set_crs(crs, allow_override=True)' to overwrite CRS or 'GeoDataFrame.to_crs(crs)' to reproject geometries. CRS mismatch will raise an error in the future versions of GeoPandas.
-       GeoSeries(array, crs=3395).crs
-
-   <Geographic 2D CRS: EPSG:4326>
-   Name: WGS 84
-   Axis Info [ellipsoidal]:
-   - Lat[north]: Geodetic latitude (degree)
-   - Lon[east]: Geodetic longitude (degree)
-   ...
-
-If you want to overwrite projection, you can then assign it to the GeoSeries
-manually or re-project geometries to the target projection using either
-``GeoSeries.set_crs(epsg=3395, allow_override=True)`` or
-``GeoSeries.to_crs(epsg=3395)``.
-
-All GeometryArray-based operations preserve projection; however, if you loop over a column
-containing geometry, this information might be lost.
 
 
 Upgrading to GeoPandas 0.7 with pyproj > 2.2 and PROJ > 6
